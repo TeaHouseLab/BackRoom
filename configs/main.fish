@@ -32,8 +32,10 @@ switch $argv[3]
             case level
                 level $argv[5..-1]
         end
+    case host
+        api $argv[4..-1]
     case v version
         logger 1 "$codename@build$version"
-    case '*'
+    case h help '*'
         help_echo
 end

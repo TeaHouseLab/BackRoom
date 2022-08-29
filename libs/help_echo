@@ -1,4 +1,36 @@
 function help_echo
  echo '
-(./)app'
+(./)app [root] [logcat] [enter, manage, host, v/version, h/help]
+    root: The root of your backroom storage, all levels will be store here
+    
+    logcat: Log output level
+        Available: [info/*, debug]
+    
+    enter: Enter a backroom level (Aka. boot a virtual machine)
+    
+    manage: Manage backroom levels (Aka. setup/configure/manage a machine)
+        Subcommand: [add, del, info, list, alias]
+        
+        manage add: Create new levels from remote lxc repo
+            Syntax: manage add [remote - http(s) only] [targets]
+            Example: backroom ./test debug manage level add https://mirrors.bfsu.edu.cn/lxc-images ubuntu:xenial:s390x:default ubuntu:xenial:amd64:default
+            
+        manage del: Destroy levels
+            Syntax: manage del [targets]
+            (!)Target has to be specific uuid of the level
+            Example: backroom ./test debug manage level del f6c23a26881f4bf8bf9aa2af19d38548 a0d9300af25b473e95198427b2213008
+            
+        manage info: Print the info of levels
+            Syntax: manage info [targets]
+            Example: backroom ./test debug manage level info a0d9300af25b473e95198427b2213008
+            
+        manage alias: Set an alias for a level
+            Syntax: manage alias [target-uuid] [alias name]
+            Example: backroom ./test debug manage level alias a0d9300af25b473e95198427b2213008 Earth
+            
+    host: Run backroom as an daemon, provide custom api for easier hosting in OpenVZ style
+    
+    v/version: Print version
+    
+    h/help: Show this msg again'
 end
