@@ -7,6 +7,19 @@ function help_echo
         Available: [info/*, debug]
     
     enter: Enter a backroom level (Aka. boot a virtual machine)
+        Subcommand: [nspawn, chroot]
+
+            enter chroot: Enter the level with chroot
+            (!)This should be only used when configuring a level
+            (?)Enter Level with Full control to host, only with file system level containment
+            Synatax: enter chroot [target]
+            [target]: uuid/alias of the level
+
+            enter nspawn: Boot the level with nspawn
+            (!)Need systemd-networkd to setup NAT layer for level(machine)
+            Synatax: enter nspawn [target] [port]
+            [target]: uuid/alias of the level
+            [port]: Port to expose
     
     manage: Manage backroom levels (Aka. setup/configure/manage a machine)
         Subcommand: [add, del, info, list, alias]

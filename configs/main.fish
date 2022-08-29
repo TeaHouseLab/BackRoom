@@ -23,7 +23,9 @@ switch $argv[3]
     case enter
         switch $argv[4]
             case nspawn
+                br_nspawn $argv[5..-1]
             case chroot
+                br_chroot $argv[5..-1]
         end
     case manage
         switch $argv[4]
