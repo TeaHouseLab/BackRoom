@@ -1,6 +1,5 @@
 function br_nspawn
     set target $argv[2]
-    set target_port $argv[3]
     if level_exist "$target"
     else
         logger 5 "Level $target is not found under $root"
@@ -16,7 +15,8 @@ function br_nspawn
                 logger 5 "Failed to setup network"
                 exit 1
             end
-            if test -z target_port
+            set target_port $argv[3]
+            if test -z "$target_port"
                 sudo systemd-nspawn --resolv-conf=off -bnq -D "$root/$target"
             else
                 set port_range $target_port

@@ -625,7 +625,6 @@ end
 
 function br_nspawn
     set target $argv[2]
-    set target_port $argv[3]
     if level_exist "$target"
     else
         logger 5 "Level $target is not found under $root"
@@ -641,7 +640,8 @@ function br_nspawn
                 logger 5 "Failed to setup network"
                 exit 1
             end
-            if test -z target_port
+            set target_port $argv[3]
+            if test -z "$target_port"
                 sudo systemd-nspawn --resolv-conf=off -bnq -D "$root/$target"
             else
                 set port_range $target_port
@@ -738,7 +738,7 @@ end
 function api
 
 end
-echo Build_Time_UTC=2022-08-30_07:49:25
+echo Build_Time_UTC=2022-08-30_07:55:48
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1

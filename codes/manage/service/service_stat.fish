@@ -9,7 +9,7 @@ function service_stat
                     set_color normal
                 else
                     if test "$power_stat" = down
-                        set_color green
+                        set_color red
                         echo "$level is down"
                         set_color normal
                     else
