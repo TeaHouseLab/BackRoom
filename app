@@ -132,7 +132,7 @@ function help_echo
                 Example: backroom ./test debug manage service edit Earth
 
             service power: Power on/off backroom levels through their services
-                Synatax: service power [on/off] [targets]
+                Synatax: service power [on/off/reboot] [targets]
                 Example: backroom ./test debug manage service power on Earth f6c23a26881f4bf8bf9aa2af19d38548
 
             service stat: Print stats of levels in index
@@ -738,7 +738,7 @@ end
 function api
 
 end
-echo Build_Time_UTC=2022-08-30_07:33:49
+echo Build_Time_UTC=2022-08-30_07:37:51
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
