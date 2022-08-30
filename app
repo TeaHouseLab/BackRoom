@@ -366,7 +366,7 @@ function level_del
             service_power off "$target"
             service_del "$target"
             if rm -rf "$root/$target"
-                jq -er "del(.[] | select(.uuid == \"$target\"))" "$root/level_index.json"
+                jq -er "del(.[] | select(.uuid == \"$target\"))" "$root/level_index.json" | sponge "$root/level_index.json"
                 logger 2 "Level $level at "$root/$target" has been destroyed"
             else
                 logger 5 "Failed to destroy level $level"
@@ -738,7 +738,7 @@ end
 function api
 
 end
-echo Build_Time_UTC=2022-08-30_07:32:03
+echo Build_Time_UTC=2022-08-30_07:33:49
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
