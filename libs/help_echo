@@ -12,14 +12,24 @@ function help_echo
             enter chroot: Enter the level with chroot
             (!)This should be only used when configuring a level
             (?)Enter Level with Full control to host, only with file system level containment
-            Synatax: enter chroot [target]
+            Synatax: enter chroot [target] [exec]
             [target]: uuid/alias of the level
+            [exec]: command to be executed
 
             enter nspawn: Boot the level with nspawn
             (!)Need systemd-networkd to setup NAT layer for level(machine)
-            Synatax: enter nspawn [target] [port]
-            [target]: uuid/alias of the level
-            [port]: Port to expose
+                Subcommand: [exec, boot]
+
+                    exec: Only try to enter a level and execute commands
+                    Synatax: enter nspawn exec [target] [exec]
+                    [target]: uuid/alias of the level
+                    [exec]: command to be executed
+                    Example: backroom ./test debug enter nspawn exec a0d9300af25b473e95198427b2213008 bash
+
+                    boot: Search and boot the level`s init system
+                    Synatax: enter nspawn boot [target]
+                    [target]: uuid/alias of the level
+                    Example: backroom ./test debug enter nspawn boot a0d9300af25b473e95198427b2213008
     
     manage: Manage backroom levels (Aka. setup/configure/manage a machine)
         Subcommand: [add, del, info, list, alias]

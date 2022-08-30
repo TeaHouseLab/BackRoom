@@ -9,15 +9,15 @@ if test -e $root
         if test -w $root; and test -r $root
         else
             logger 5 "root => $root is not Readable/Writable"
-            exit 128
+            exit 1
         end
     else
         logger 5 "root => $root is not a diretory file"
-        exit 128
+        exit 1
     end
 else
     logger 5 "root => $root is not found"
-    exit 128
+    exit 1
 end
 switch $argv[3]
     case enter

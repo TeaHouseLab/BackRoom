@@ -20,15 +20,16 @@ function level_seed
         if mkdir -p "$root/.package"
         else
             logger 5 "Can not create the package cache folder"
-            exit 128
+            exit 1
         end
     end
     if sudo -E curl --progress-bar -L -o "$root/.package/$target.level" "$remote/$path"
         if test "$(sha256sum $root/.package/$target.level | awk -F ' ' '{print $1}')"
             logger 2 "Level package $target checked"
+            return 0
         else
             logger 4 "Level package $target check sha256 failed"
-            set check failed
+            return 1
         end
     end
 end

@@ -1,14 +1,11 @@
 function br_chroot
     set target $argv[1]
-    if jq -r ".[] | select(.uuid==\"$target\")" "$root/level_index.json"
-        set target (jq -r ".[] | select(.uuid==\"$target\") | .uuid" "$root/level_index.json")
+    if level_exist $target
     else
-        if jq -r ".[] | select(.alias==\"$target\")" "$root/level_index.json"
-            set target (jq -r ".[] | select(.alias==\"$target\") | .uuid" "$root/level_index.json")
-        else
-            logger 5 "This level is not exist"
-            exit 128
-        end
+        logger 5 "Level $target is not found under $root"
+        exit 1
     end
-    mount_utils
+    mount_utils mount $target
+    chroot $root/$target $argv[2..-1]
+    mount_utils umount $target
 end

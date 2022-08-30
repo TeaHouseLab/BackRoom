@@ -59,6 +59,29 @@ function help_echo
         Available: [info/*, debug]
     
     enter: Enter a backroom level (Aka. boot a virtual machine)
+        Subcommand: [nspawn, chroot]
+
+            enter chroot: Enter the level with chroot
+            (!)This should be only used when configuring a level
+            (?)Enter Level with Full control to host, only with file system level containment
+            Synatax: enter chroot [target] [exec]
+            [target]: uuid/alias of the level
+            [exec]: command to be executed
+
+            enter nspawn: Boot the level with nspawn
+            (!)Need systemd-networkd to setup NAT layer for level(machine)
+                Subcommand: [exec, boot]
+
+                    exec: Only try to enter a level and execute commands
+                    Synatax: enter nspawn exec [target] [exec]
+                    [target]: uuid/alias of the level
+                    [exec]: command to be executed
+                    Example: backroom ./test debug enter nspawn exec a0d9300af25b473e95198427b2213008 bash
+
+                    boot: Search and boot the level`s init system
+                    Synatax: enter nspawn boot [target]
+                    [target]: uuid/alias of the level
+                    Example: backroom ./test debug enter nspawn boot a0d9300af25b473e95198427b2213008
     
     manage: Manage backroom levels (Aka. setup/configure/manage a machine)
         Subcommand: [add, del, info, list, alias]
@@ -129,26 +152,85 @@ ls $argv | sed '\~//~d'
 end
 
 function service_stat
-
-end
-function service_del
-
-end
-function service_add
     for target in $argv
-        if test -d $root/$target
+        if level_exist $target
+            
         else
-            if test -e /etc/systemd/system/backroom-$target
-            else
-                logger 5 ""
-            end
+            logger 5 "Level $target is not found under $root"
         end
     end
 end
 
-function level_del
-
+function service_del
+    for target in $argv
+        if level_exist $target
+            if service_exist $target
+                rm /etc/systemd/system/backroom-$target.service
+                jq -re ".[] | select(.uuid==\"$target\") .service = \"false\"" "$root/level_index.json" | sponge "$root/level_index.json"
+                logger 2 "Service file for level $target has been removed"
+            else
+                logger 5 "Service file for level $target is not found"
+            end
+        else
+            logger 5 "Level $target is not found under $root"
+        end
+    end
 end
+
+function service_add
+    for target in $argv
+        if level_exist $target
+            if service_exist $target
+                logger 4 "Service for $target is marked as true in index file"
+            else
+                echo "[Unit]
+Description=BackRoom level $target
+After=network.target
+StartLimitIntervalSec=15
+[Service]
+User=root
+ExecStart=backroom $root info enter nspawn boot $target
+SyslogIdentifier=backroom-$target
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &>/dev/null
+                jq -re ".[] | select(.uuid==\"$target\") .service = \"true\"" "$root/level_index.json" | sponge "$root/level_index.json"
+            end
+        else
+            logger 5 "Level $target is not found under $root"
+        end
+    end
+end
+
+function service_exist
+    set target $argv[1]
+    if level_exist $target
+        if jq -er ".[] | select(.uuid==\"$target\") | select(.service==\"false\")" "$root/level_index.json" &>/dev/null
+            if test -e /etc/systemd/system/backroom-$target.service
+                return 0
+            else
+                return 1
+            end
+        else
+            return 1
+        end
+    else
+        return 1
+    end
+end
+
+function level_del
+    for target in $argv
+        if level_exist $target
+        mount_utils umount $target
+        else
+            logger 5 "Level $target is not found under $root"
+            continue
+        end
+    end
+end
+
 function level_list
 
 end
@@ -164,8 +246,8 @@ function level_spawn
             echo 'safety:!:0:0:99999:7:::' >> $root/$target/etc/shadow
             mkdir -p $root/$target/home/safety
             rm -f $root/$target/etc/hostname
-            echo $containername > $root/$target/etc/hostname
-            echo 127.0.0.1  $containername >> $root/$target/etc/hosts
+            echo $target > $root/$target/etc/hostname
+            echo 127.0.0.1  $target >> $root/$target/etc/hosts
             cp -f --remove-destination /etc/resolv.conf $root/$target/etc/resolv.conf"
     else
         sh -c "echo 'safety:x:1000:1000:safety,,,:/home/safety:/bin/sh' >> $root/$target/etc/passwd
@@ -173,11 +255,23 @@ function level_spawn
             echo 'safety:!:0:0:99999:7:::' >> $root/$target/etc/shadow
             mkdir -p $root/$target/home/safety
             rm -f $root/$target/etc/hostname
-            echo $containername > $root/$target/etc/hostname
-            echo 127.0.0.1  $containername >> $root/$target/etc/hosts
+            echo $target > $root/$target/etc/hostname
+            echo 127.0.0.1  $target >> $root/$target/etc/hosts
             cp -f --remove-destination /etc/resolv.conf $root/$target/etc/resolv.conf" &>/dev/null
     end
-    
+    if [ "$logcat" = debug ]
+        logger 3 "Configuring $target"
+        br_chroot $target /bin/sh -c '/bin/chown -R safety:safety /home/safety
+            /bin/chmod -R 755 /home/safety & echo "safety    ALL=(ALL:ALL) ALL" >> /etc/sudoers
+            echo "0d7882da60cc3838fabc4efc62908206" > /etc/machine-id
+            (crontab -l 2>/dev/null; echo @reboot ip link set host0 name eth0) | crontab -'
+    else
+        br_chroot $target /bin/sh -c '/bin/chown -R safety:safety /home/safety
+            /bin/chmod -R 755 /home/safety & echo "safety    ALL=(ALL:ALL) ALL" >> /etc/sudoers
+            echo "0d7882da60cc3838fabc4efc62908206" > /etc/machine-id
+            (crontab -l 2>/dev/null; echo @reboot ip link set host0 name eth0) | crontab -' &>/dev/null
+    end
+    return 0
 end
 function level_seed
     set target $argv[1]
@@ -201,19 +295,42 @@ function level_seed
         if mkdir -p "$root/.package"
         else
             logger 5 "Can not create the package cache folder"
-            exit 128
+            exit 1
         end
     end
     if sudo -E curl --progress-bar -L -o "$root/.package/$target.level" "$remote/$path"
         if test "$(sha256sum $root/.package/$target.level | awk -F ' ' '{print $1}')"
             logger 2 "Level package $target checked"
+            return 0
         else
             logger 4 "Level package $target check sha256 failed"
-            set check failed
+            return 1
         end
     end
 end
 
+function level_exist
+    set target $argv[1]
+    if jq -er ".[] | select(.uuid==\"$target\")" "$root/level_index.json" &>/dev/null
+        set target (jq -r ".[] | select(.uuid==\"$target\") | .uuid" "$root/level_index.json")
+        if test -d $root/$target
+            return 0
+        else
+            return 1
+        end
+    else
+        if jq -er ".[] | select(.alias==\"$target\")" "$root/level_index.json" &>/dev/null
+            set target (jq -r ".[] | select(.alias==\"$target\") | .uuid" "$root/level_index.json")
+            if test -d $root/$target
+                return 0
+            else
+                return 1
+            end
+        else
+            return 1
+        end
+    end
+end
 function level_add
     set -x remote $argv[1]
     set -x targets $argv[2..-1]
@@ -229,7 +346,7 @@ function level_add
         end
     else
         logger 5 "This remote repo does not contain lxc images or it's down currently"
-        exit 128
+        exit 1
     end
     if test -e "$root/level_index.json"
         if test "$logcat" = debug
@@ -242,23 +359,22 @@ function level_add
             end
         else
             logger 5 "Can not create index file in $root"
-            exit 128
+            exit 1
         end
     end
     for target in $targets
-        level_seed $target
-        if test "$check" = failed
+        if level_seed $target
+        else
             continue
         end
         set uuid (cat /proc/sys/kernel/random/uuid | sed 's/-//g')
         mkdir $uuid
         tar --force-local -xf "$root/.package/$target.level" -C "$root/$uuid"
-        level_spawn $uuid
-        if test "$check" = failed
-            continue
-        else
-            jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\", \"alias\": \"\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
+        if level_spawn $uuid
+            jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\", \"alias\": \"\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
             logger 2 "Level $uuid spawned"
+        else
+            continue
         end
     end
 end
@@ -287,22 +403,65 @@ function level
     end
 end
 
-function nspawn
+function br_chroot
+    set target $argv[1]
+    if level_exist $target
+    else
+        logger 5 "Level $target is not found under $root"
+        exit 1
+    end
+    mount_utils mount $target
+    chroot $root/$target $argv[2..-1]
+    mount_utils umount $target
+end
+
+function br_nspawn
 
 end
 function mount_utils
-
+    set target $argv[2]
+    function mount_rw
+        for mount_target in "$mount_point"
+            if test "$logcat" = debug
+                logger 3 "Mounting $mount_target to $root/$target$mount_target"
+            end
+            if grep -qs "$root/$target$mount_target" /proc/mounts
+            else
+                mount -o bind,rw "$mount_target" "$root/$target$mount_target"
+            end
+        end
+    end
+    function umount_rw
+        for umount_target in "$mount_point"
+            if test "$logcat" = debug
+                logger 3 "Unmounting $umount_target $root/$target$umount_target"
+            end
+            if grep -qs "$root/$target$umount_target" /proc/mounts
+                umount -l "$root/$target$umount_target"
+            end
+            if grep -qs /dev/pts /proc/mounts
+            else
+                mount devpts /dev/pts -t devpts
+            end
+        end
+    end
+    switch $argv[1]
+        case mount
+            set mount_point /dev /dev/pts /proc /sys
+            mount_rw
+        case umount
+            set mount_point /dev /dev/pts /proc /sys
+            umount_rw
+    end
 end
-function chroot
 
-end
 function utils
 
 end
 function api
 
 end
-echo Build_Time_UTC=2022-08-29_13:13:43
+echo Build_Time_UTC=2022-08-30_02:53:20
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
@@ -314,21 +473,23 @@ if test -e $root
         if test -w $root; and test -r $root
         else
             logger 5 "root => $root is not Readable/Writable"
-            exit 128
+            exit 1
         end
     else
         logger 5 "root => $root is not a diretory file"
-        exit 128
+        exit 1
     end
 else
     logger 5 "root => $root is not found"
-    exit 128
+    exit 1
 end
 switch $argv[3]
     case enter
         switch $argv[4]
             case nspawn
+                br_nspawn $argv[5..-1]
             case chroot
+                br_chroot $argv[5..-1]
         end
     case manage
         switch $argv[4]
