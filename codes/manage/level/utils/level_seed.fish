@@ -23,13 +23,24 @@ function level_seed
             exit 1
         end
     end
-    if sudo -E curl --progress-bar -L -o "$root/.package/$target.level" "$remote/$path"
+    if test -e "$root/.package/$target.level"
         if test "$(sha256sum $root/.package/$target.level | awk -F ' ' '{print $1}')"
-            logger 2 "Level package $target checked"
+            logger 2 "Level package $target checked, using cached package"
             return 0
         else
             logger 4 "Level package $target check sha256 failed"
-            return 1
+            rm "$root/.package/$target.level"
+            level_seed $target
+        end
+    else
+        if sudo -E curl --progress-bar -L -o "$root/.package/$target.level" "$remote/$path"
+            if test "$(sha256sum $root/.package/$target.level | awk -F ' ' '{print $1}')"
+                logger 2 "Level package $target checked"
+                return 0
+            else
+                logger 4 "Level package $target check sha256 failed"
+                return 1
+            end
         end
     end
 end
