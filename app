@@ -59,7 +59,7 @@ function help_echo
         Available: [info/*, debug]
     
     enter: Enter a backroom level (Aka. boot a virtual machine)
-        Subcommand: [nspawn, chroot]
+        Subcommand: [nspawn, chroot, kvm]
 
             enter chroot: Enter the level with chroot
             (!)This should be only used when configuring a level
@@ -83,6 +83,12 @@ function help_echo
                     [target]: uuid/alias of the level
                     [ports]: ports to be exposed
                     Example: backroom ./test debug enter nspawn boot a0d9300af25b473e95198427b2213008
+
+            enter kvm: Boot the level with qemu+kvm
+                Synatax: enter kvm [target] [ports] [core] [ram] [extra qemu args]
+                [target]: uuid/alias of the level
+                [ports]: ports to be exposed
+                Example: backroom ./test debug enter kvm a0d9300af25b473e95198427b2213008 '' 1 1024 -drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2-ovmf/x64/OVMF_CODE.fd
     
     manage: Manage backroom levels (Aka. setup/configure/manage a machine)
         Subcommand: [level, service]
@@ -90,9 +96,17 @@ function help_echo
         manage level: Manage levels
             Subcommand: [add, del, info, list, alias]
             
-            level add: Create new levels from remote lxc repo
-                Syntax: level add [remote - http(s) only] [targets]
-                Example: backroom ./test debug manage level add https://mirrors.bfsu.edu.cn/lxc-images ubuntu:xenial:s390x:default ubuntu:xenial:amd64:default
+            level add: Create new levels from remote lxc repo or local disk image
+                Subcommand: [rootfs, kvm]
+                
+                add rootfs: Create levels as rootfs from remote repo(nspawn, chroot)
+                    Synatax: add rootfs [remote - http(s) only] [targets]
+                    Example: backroom ./test debug manage level add rootfs https://mirrors.bfsu.edu.cn/lxc-images ubuntu:xenial:s390x:default ubuntu:xenial:amd64:default
+
+                add kvm: Create a level as qcow2 disk image from local disk image(kvm+qemu)
+                    Synatax: add kvm [target]
+                    [target]: Will be the seed(template) of the new level
+                    Example: backroom ./test debug manage level add kvm ../template/debian-11.qcow2
                 
             level del: Destroy levels
                 Syntax: level del [targets]
@@ -120,8 +134,15 @@ function help_echo
             Subcommand: [add, del, edit, power, stat]
 
             service add: Add services for levels
-                Synatax: service add [targets]
-                Example: backroom ./test debug manage service add Earth f6c23a26881f4bf8bf9aa2af19d38548
+                Subcommand: [rootfs, kvm]
+
+                add rootfs: Add services for rootfs levels
+                    Synatax: add rootfs [targets]
+                    Example: backroom ./test debug manage service add rootfs Earth f6c23a26881f4bf8bf9aa2af19d38548
+
+                add kvm: Add services for kvm levels
+                    Synatax: add kvm [targets]
+                    Example: backroom ./test debug manage service add kvm Earth f6c23a26881f4bf8bf9aa2af19d38548
 
             service del: Remove services for levels
                 Synatax: service del [targets]
@@ -187,6 +208,34 @@ function list_menu
 ls $argv | sed '\~//~d'
 end
 
+function service_add_rootfs
+    set pwd (pwd)
+    for level in $argv
+        if level_exist "$level"
+            if service_exist "$level"
+                logger 4 "Service for $level is marked as true in index file"
+            else
+                echo "[Unit]
+Description=BackRoom level $target
+After=network.target
+StartLimitIntervalSec=15
+[Service]
+User=root
+ExecStart=backroom $pwd/$root info enter nspawn boot $target
+SyslogIdentifier=backroom-$target
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &>/dev/null
+                jq -re "[.[] | select(.uuid==\"$target\").service = \"true\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                logger 2 "Service has been created for level $level at /etc/systemd/system/backroom-$target.service"
+            end
+        else
+            logger 5 "Level $level is not found under $root"
+        end
+    end
+end
+
 function service_stat
     for level in $argv
         if level_exist "$level"
@@ -198,7 +247,7 @@ function service_stat
                     set_color normal
                 else
                     if test "$power_stat" = down
-                        set_color green
+                        set_color red
                         echo "$level is down"
                         set_color normal
                     else
@@ -222,6 +271,34 @@ function service_edit
             nano /etc/systemd/system/backroom-$target.service
             systemctl daemon-reload
             logger 2 "Reconfigured level $level at /etc/systemd/system/backroom-$target.service"
+        else
+            logger 5 "Level $level is not found under $root"
+        end
+    end
+end
+
+function service_add_kvm
+    set pwd (pwd)
+    for level in $argv
+        if level_exist "$level"
+            if service_exist "$level"
+                logger 4 "Service for $level is marked as true in index file"
+            else
+                echo "[Unit]
+Description=BackRoom level $target
+After=network.target
+StartLimitIntervalSec=15
+[Service]
+User=root
+ExecStart=backroom $pwd/$root info enter kvm $target
+SyslogIdentifier=backroom-$target
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &>/dev/null
+                jq -re "[.[] | select(.uuid==\"$target\").service = \"true\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                logger 2 "Service has been created for level $level at /etc/systemd/system/backroom-$target.service"
+            end
         else
             logger 5 "Level $level is not found under $root"
         end
@@ -314,34 +391,6 @@ function service_power
     end
 end
 
-function service_add
-    set pwd (pwd)
-    for level in $argv
-        if level_exist "$level"
-            if service_exist "$level"
-                logger 4 "Service for $level is marked as true in index file"
-            else
-                echo "[Unit]
-Description=BackRoom level $target
-After=network.target
-StartLimitIntervalSec=15
-[Service]
-User=root
-ExecStart=backroom $pwd/$root info enter nspawn boot $target
-SyslogIdentifier=backroom-$target
-Restart=on-failure
-RestartSec=5
-[Install]
-WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &>/dev/null
-                jq -re "[.[] | select(.uuid==\"$target\").service = \"true\"]" "$root/level_index.json" | sponge "$root/level_index.json"
-                logger 2 "Service has been created for level $level at /etc/systemd/system/backroom-$target.service"
-            end
-        else
-            logger 5 "Level $level is not found under $root"
-        end
-    end
-end
-
 function service_exist
     set target $argv[1]
     if level_exist "$target"
@@ -375,6 +424,23 @@ function level_del
             logger 5 "Level $level is not found under $root"
             continue
         end
+    end
+end
+
+function level_add_kvm
+    set seed $argv[1]
+    set uuid (cat /proc/sys/kernel/random/uuid | sed 's/-//g')
+    set timestamp (date -u +"%Y-%m-%d-%H:%M:%S")
+    if file $seed | grep -qs Image
+        if cp $seed $uuid
+            jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"kvm_machine\",\"type\": \"disk\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
+            logger 2 "Level $uuid spawned"
+        else
+            logger 5 "Failed to spawn level from $seed"
+        end
+    else
+        logger 5 "This is not a disk image"
+        return 1
     end
 end
 
@@ -505,7 +571,7 @@ function level_exist
     set target $argv[1]
     if jq -er ".[] | select(.uuid==\"$target\")" "$root/level_index.json" &>/dev/null
         set target (jq -r ".[] | select(.uuid==\"$target\") | .uuid" "$root/level_index.json")
-        if test -d $root/$target
+        if test -e $root/$target
             return 0
         else
             return 1
@@ -513,7 +579,7 @@ function level_exist
     else
         if jq -er ".[] | select(.alias==\"$target\")" "$root/level_index.json" &>/dev/null
             set target (jq -r ".[] | select(.alias==\"$target\") | .uuid" "$root/level_index.json")
-            if test -d $root/$target
+            if test -e $root/$target
                 return 0
             else
                 return 1
@@ -523,10 +589,10 @@ function level_exist
         end
     end
 end
-function level_add
+function level_add_rootfs
     set -x remote $argv[1]
     set -x targets $argv[2..-1]
-    set -x timestamp (date -u +"%Y-%m-%d %H:%M:%S")
+    set -x timestamp (date -u +"%Y-%m-%d-%H:%M:%S")
     set -x check
     if test -z $remote
         logger 5 "No remote configured"
@@ -553,7 +619,7 @@ function level_add
         set uuid (cat /proc/sys/kernel/random/uuid | sed 's/-//g')
         mkdir $uuid
         tar --force-local -xf "$root/.package/$target.level" -C "$root/$uuid"
-        jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\", \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
+        jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\",\"type\": \"rootfs\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
         if level_spawn $uuid
             logger 2 "Level $uuid spawned"
         else
@@ -579,7 +645,12 @@ end
 function service
     switch $argv[1]
         case add
-            service_add $argv[2..-1]
+            switch $argv[2]
+                case kvm
+                    service_add $argv[3..-1]
+                case rootfs
+                    service_add_rootfs $argv[3..-1]
+            end
         case del
             service_del $argv[2..-1]
         case stat
@@ -590,13 +661,18 @@ function service
             service_edit $argv[2..-1]
         case '*'
             logger 5 "Option $argv[1] not found at backroom.service"
-        end
+    end
 end
 
 function level
     switch $argv[1]
         case add
-            level_add $argv[2..-1]
+            switch $argv[2]
+                case kvm
+                    level_add_kvm $argv[3..-1]
+                case rootfs
+                    level_add_rootfs $argv[3..-1]
+            end
         case del
             level_del $argv[2..-1]
         case info
@@ -732,20 +808,64 @@ function setup_network
     end
 end
 
+function br_kvm
+set target $argv[1]
+if level_exist "$target"
+else
+    logger 5 "Level $target is not found under $root"
+    exit 1
+end
+set target_port $argv[2]
+set target_core $argv[3]
+set target_mem $argv[4]
+set target_arg $argv[5..-1]
+if test -z "$target_port"
+    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" "$target_arg" -hda "$root/$target"
+else
+    set port_range $target_port
+    if echo $port_range | grep -qs -
+        set -e port_mapping_tcp
+        set -e port_mapping_udp
+        set -e port_mapping
+        set port_counter 0
+        for port_arrary in (seq (echo $port_range | awk -F "-" '{print $1}') (echo $port_range | awk -F "-" '{print $2}'))
+            set port_counter (math $port_counter+1)
+            set port_mapping_tcp[$port_counter] ",hostfwd=tcp::$port_arrary-:$port_arrary"
+            set port_mapping_udp[$port_counter] ",hostfwd=udp::$port_arrary-:$port_arrary"
+        end
+    else
+        if echo $port_range | grep -qs ,
+            set -e port_mapping_tcp
+            set -e port_mapping_udp
+            set -e port_mapping
+            set port_counter 0
+            for port_arrary in (echo $port_range | string split ,)
+                set port_counter (math $port_counter+1)
+                set port_mapping_tcp[$port_counter] ",hostfwd=tcp::$port_arrary-:$port_arrary"
+                set port_mapping_udp[$port_counter] ",hostfwd=udp::$port_arrary-:$port_arrary"
+            end
+        else
+            set port_mapping_tcp ",hostfwd=tcp::$target_port-:$target_port"
+            set port_mapping_udp ",hostfwd=udp::$target_port-:$target_port"
+        end
+    end
+    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp "$target_arg" -hda "$root/$target"
+end
+end
 function utils
 
 end
 function api
 
 end
-echo Build_Time_UTC=2022-08-30_07:55:48
+echo Build_Time_UTC=2022-08-30_14:57:42
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
 set -x target
 set -x root $argv[1]
 set -x logcat $argv[2]
-checkdependence jq curl sponge nano
+checkdependence jq curl sponge nano systemd-nspawn
 if test -e $root
     if test -d $root
         if test -w $root; and test -r $root
@@ -782,6 +902,8 @@ switch $argv[3]
                 br_nspawn $argv[5..-1]
             case chroot
                 br_chroot $argv[5..-1]
+            case kvm
+                br_kvm $argv[5..-1]
         end
     case manage
         switch $argv[4]

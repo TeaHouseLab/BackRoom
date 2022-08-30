@@ -4,7 +4,7 @@ set -x ver 1
 set -x target
 set -x root $argv[1]
 set -x logcat $argv[2]
-checkdependence jq curl sponge nano
+checkdependence jq curl sponge nano systemd-nspawn
 if test -e $root
     if test -d $root
         if test -w $root; and test -r $root
@@ -41,6 +41,8 @@ switch $argv[3]
                 br_nspawn $argv[5..-1]
             case chroot
                 br_chroot $argv[5..-1]
+            case kvm
+                br_kvm $argv[5..-1]
         end
     case manage
         switch $argv[4]

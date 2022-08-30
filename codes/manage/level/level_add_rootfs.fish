@@ -1,7 +1,7 @@
-function level_add
+function level_add_rootfs
     set -x remote $argv[1]
     set -x targets $argv[2..-1]
-    set -x timestamp (date -u +"%Y-%m-%d %H:%M:%S")
+    set -x timestamp (date -u +"%Y-%m-%d-%H:%M:%S")
     set -x check
     if test -z $remote
         logger 5 "No remote configured"
@@ -28,7 +28,7 @@ function level_add
         set uuid (cat /proc/sys/kernel/random/uuid | sed 's/-//g')
         mkdir $uuid
         tar --force-local -xf "$root/.package/$target.level" -C "$root/$uuid"
-        jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\", \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
+        jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\",\"type\": \"rootfs\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
         if level_spawn $uuid
             logger 2 "Level $uuid spawned"
         else

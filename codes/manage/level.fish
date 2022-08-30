@@ -1,7 +1,12 @@
 function level
     switch $argv[1]
         case add
-            level_add $argv[2..-1]
+            switch $argv[2]
+                case kvm
+                    level_add_kvm $argv[3..-1]
+                case rootfs
+                    level_add_rootfs $argv[3..-1]
+            end
         case del
             level_del $argv[2..-1]
         case info

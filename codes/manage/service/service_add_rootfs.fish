@@ -1,4 +1,4 @@
-function service_add
+function service_add_rootfs
     set pwd (pwd)
     for level in $argv
         if level_exist "$level"
