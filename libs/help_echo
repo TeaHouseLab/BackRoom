@@ -27,10 +27,10 @@ function help_echo
 
                     boot: Search and boot the level`s init system
                     (!)Need systemd-networkd to setup NAT layer for level(machine)
-                    Synatax: enter nspawn boot [target] [ports]
+                    Synatax: enter nspawn boot [target] [ports] [core] [ram] [extra nspawn args]
                     [target]: uuid/alias of the level
-                    [ports]: ports to be exposed
-                    Example: backroom ./test debug enter nspawn boot a0d9300af25b473e95198427b2213008
+                    [ports]: ports to be exposed(format: a-b or a,b or a)
+                    Example: backroom ./test debug enter nspawn boot a0d9300af25b473e95198427b2213008 22-25 50% 1024
 
             enter kvm: Boot the level with qemu+kvm
                 Synatax: enter kvm [target] [ports] [core] [ram] [extra qemu args]
