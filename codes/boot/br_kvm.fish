@@ -10,7 +10,7 @@ set target_core $argv[3]
 set target_mem $argv[4]
 set target_arg $argv[5..-1]
 if test -z "$target_port"
-    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" "$target_arg" -hda "$root/$target"
+    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" $target_arg -hda "$root/$target"
 else
     set port_range $target_port
     if echo $port_range | grep -qs -
@@ -39,6 +39,6 @@ else
             set port_mapping_udp ",hostfwd=udp::$target_port-:$target_port"
         end
     end
-    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp "$target_arg" -hda "$root/$target"
+    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp $target_arg -hda "$root/$target"
 end
 end

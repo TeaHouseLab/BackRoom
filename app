@@ -569,26 +569,44 @@ end
 
 function level_exist
     set target $argv[1]
-    if jq -er ".[] | select(.uuid==\"$target\")" "$root/level_index.json" &>/dev/null
-        set target (jq -r ".[] | select(.uuid==\"$target\") | .uuid" "$root/level_index.json")
-        if test -e $root/$target
-            return 0
-        else
-            return 1
-        end
-    else
-        if jq -er ".[] | select(.alias==\"$target\")" "$root/level_index.json" &>/dev/null
-            set target (jq -r ".[] | select(.alias==\"$target\") | .uuid" "$root/level_index.json")
+    set level_json (cat "$root/level_index.json")
+    if echo "$level_json" | jq -er ".[] | select(.uuid==\"$target\")" &>/dev/null
+        set target (echo "$level_json" | jq -r ".[] | select(.uuid==\"$target\").uuid")
+        if test (echo "$level_json" | jq -r ".[] | select(.uuid==\"$target\").variant") = kvm_machine
             if test -e $root/$target
                 return 0
             else
                 return 1
             end
         else
+            if test -d $root/$target
+                return 0
+            else
+                return 1
+            end
+        end
+    else
+        if echo "$level_json" | jq -er ".[] | select(.alias==\"$target\")" &>/dev/null
+            set target (echo "$level_json" | jq -r ".[] | select(.alias==\"$target\").uuid")
+            if test (echo "$level_json" | jq -r ".[] | select(.uuid==\"$target\").variant") = kvm_machine
+                if test -e $root/$target
+                    return 0
+                else
+                    return 1
+                end
+            else
+                if test -d $root/$target
+                    return 0
+                else
+                    return 1
+                end
+            end
+        else
             return 1
         end
     end
 end
+
 function level_add_rootfs
     set -x remote $argv[1]
     set -x targets $argv[2..-1]
@@ -820,7 +838,7 @@ set target_core $argv[3]
 set target_mem $argv[4]
 set target_arg $argv[5..-1]
 if test -z "$target_port"
-    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" "$target_arg" -hda "$root/$target"
+    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" $target_arg -hda "$root/$target"
 else
     set port_range $target_port
     if echo $port_range | grep -qs -
@@ -849,7 +867,7 @@ else
             set port_mapping_udp ",hostfwd=udp::$target_port-:$target_port"
         end
     end
-    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp "$target_arg" -hda "$root/$target"
+    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp $target_arg -hda "$root/$target"
 end
 end
 function utils
@@ -858,7 +876,7 @@ end
 function api
 
 end
-echo Build_Time_UTC=2022-08-30_14:57:42
+echo Build_Time_UTC=2022-08-31_03:57:54
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
