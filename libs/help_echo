@@ -120,7 +120,20 @@ function help_echo
                 Example: backroom ./test debug manage service stat Earth
             
     host: Run backroom as an daemon, provide custom api for easier hosting in OpenVZ style
-    
+        Subcommand: [s, ss]
+
+            host s: Run api server without ssl encrypted (Not recommend)
+            Synatax: host s [port] [address]
+            Example: backroom . debug host s 8080 0.0.0.0
+
+            host ss: Run api server with ssl encrypted
+            Synatax: host ss [port] [address] [cert] [key]
+            Example: backroom . debug host ss 443 0.0.0.0 /home/fullchain.crt /home/server.key
+
+        [api documents]
+        Synatax and URL: [host]/manage/[level, service, power]/[add, del, info, list/del/on, off, reboot]?argvs
+        Example: curl '127.0.0.1:8080/manage/level/add/rootfs?mirror.bfsu.edu.cn/lxc-images&debian:bullseye:amd64:default'
+
     v/version: Print version
     
     h/help: Show this msg again'

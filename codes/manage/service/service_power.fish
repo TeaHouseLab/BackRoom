@@ -20,7 +20,11 @@ function service_power
                             end
                         end
                     else
-                        service_add $target
+                        if test "$(jq -re ".[] | select(.uuid=\"$target\").variant" "$root/level_index.json")" = kvm_machine
+                            service_add_kvm "$target"
+                        else
+                            service_add_rootfs "$target"
+                        end
                         if systemctl start backroom-$target; and systemctl enable backroom-$target
                             jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
                             logger 2 "Level $level is up and enabled at startup"

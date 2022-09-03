@@ -1,5 +1,4 @@
 function service_add_rootfs
-    set pwd (pwd)
     for level in $argv
         if level_exist "$level"
             if service_exist "$level"
@@ -11,7 +10,7 @@ After=network.target
 StartLimitIntervalSec=15
 [Service]
 User=root
-ExecStart=backroom $pwd/$root info enter nspawn boot $target
+ExecStart=backroom $(readlink -f $root) info enter nspawn boot $target
 SyslogIdentifier=backroom-$target
 Restart=on-failure
 RestartSec=5

@@ -145,6 +145,10 @@ Levels can be bring up from their service
             Synatax: host ss [port] [address] [cert] [key]
             Example: backroom . debug host ss 443 0.0.0.0 /home/fullchain.crt /home/server.key
 
+        [api documents]
+        Synatax and URL: [host]/manage/[level, service, power]/[add, del, info, list/del/on, off, reboot]?argvs
+        Example: curl '127.0.0.1:8080/manage/level/add/rootfs?mirror.bfsu.edu.cn/lxc-images&debian:bullseye:amd64:default'
+
     v/version: Print version
     
     h/help: Show this msg again

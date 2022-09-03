@@ -172,7 +172,16 @@ function help_echo
                 Example: backroom ./test debug manage service stat Earth
             
     host: Run backroom as an daemon, provide custom api for easier hosting in OpenVZ style
-    
+        Subcommand: [s, ss]
+
+            host s: Run api server without ssl encrypted (Not recommend)
+            Synatax: host s [port] [address]
+            Example: backroom . debug host s 8080 0.0.0.0
+
+            host ss: Run api server with ssl encrypted
+            Synatax: host ss [port] [address] [cert] [key]
+            Example: backroom . debug host ss 443 0.0.0.0 /home/fullchain.crt /home/server.key
+
     v/version: Print version
     
     h/help: Show this msg again'
@@ -220,7 +229,6 @@ ls $argv | sed '\~//~d'
 end
 
 function service_add_rootfs
-    set pwd (pwd)
     for level in $argv
         if level_exist "$level"
             if service_exist "$level"
@@ -232,7 +240,7 @@ After=network.target
 StartLimitIntervalSec=15
 [Service]
 User=root
-ExecStart=backroom $pwd/$root info enter nspawn boot $target
+ExecStart=backroom $(readlink -f $root) info enter nspawn boot $target
 SyslogIdentifier=backroom-$target
 Restart=on-failure
 RestartSec=5
@@ -354,7 +362,11 @@ function service_power
                             end
                         end
                     else
-                        service_add $target
+                        if test "$(jq -re ".[] | select(.uuid=\"$target\").variant" "$root/level_index.json")" = kvm_machine
+                            service_add_kvm "$target"
+                        else
+                            service_add_rootfs "$target"
+                        end
                         if systemctl start backroom-$target; and systemctl enable backroom-$target
                             jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
                             logger 2 "Level $level is up and enabled at startup"
@@ -532,6 +544,38 @@ function level_spawn
     end
     return 0
 end
+function level_index_db
+    if test -e $root
+        if test -d $root
+            if test -w $root; and test -r $root
+                if test -e "$root/level_index.json"
+                    if test "$logcat" = debug
+                        logger 3 "Index is available"
+                    end
+                else
+                    if echo "[]" >"$root/level_index.json"
+                        if test "$logcat" = debug
+                            logger 3 "Index is available"
+                        end
+                    else
+                        logger 5 "Can not create index file in $root"
+                        exit 1
+                    end
+                end
+            else
+                logger 5 "root => $root is not Readable/Writable"
+                exit 1
+            end
+        else
+            logger 5 "root => $root is not a diretory file"
+            exit 1
+        end
+    else
+        logger 5 "root => $root is not found"
+        exit 1
+    end
+end
+
 function level_seed
     set target $argv[1]
     set meta (curl -sL $remote/streams/v1/images.json | jq -r '.products')
@@ -755,6 +799,8 @@ function level
                     level_add_kvm $argv[3..-1]
                 case rootfs
                     level_add_rootfs $argv[3..-1]
+                case '*'
+                    logger 5 "Option $argv[1] not found at backroom.level.add"
             end
         case del
             level_del $argv[2..-1]
@@ -940,51 +986,132 @@ else
     qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp $target_arg -hda "$root/$target"
 end
 end
-function utils
+function logicpipe
+    while read request_raw
+        set request_raw_process (echo $request_raw | tr '\r' ' ')
+        set request "$request $request_raw_process"
+        if test "$request_raw" = \r
+            break
+        end
+    end
+    set ip $argv[1]
+    set port $argv[2]
+    set path $argv[3]
+    set dir $argv[4]
+    set request_path (echo $request | tr ' ' '\n' | awk '/GET/{getline; print}')
+    set 200 "HTTP/1.1 200 OK
+Content-Type:*/*; charset=UTF-8"
+    set 302 "HTTP/1.1 302 Found"
+    set 403 "HTTP/1.1 403 Forbidden
+Content-Type:*/*; charset=UTF-8"
+    set 404 "HTTP/1.1 404 Not Found
+Content-Type:*/*; charset=UTF-8"
+    if echo $request_path | grep -qs "?"
+        set request_path (echo $request | tr ' ' '\n' | awk '/GET/{getline; print}' | awk -F "?" '{print $1}')
+        set request_argv (echo $request | tr ' ' '\n' | awk '/GET/{getline; print}' | awk -F "?" '{print $2}')
+        set arg true
+    end
+    switch $request_path
+        case '/manage/*'
+            set level_1 (echo "$request_path" | sed 's/\/manage\///g')
+            switch $level_1
+                case 'level/*'
+                    set level_2 (echo "$level_1" | sed 's/level\///g')
+                    switch $level_2
+                        case 'add/*'
+                            set level_3 (echo "$level_2" | sed 's/add\///g')
+                            switch $level_3
+                                case 'rootfs*'
+                                    set output ($path $dir info manage level add rootfs (echo "$request_argv" | string split '&'))
+                                    echo -e "$200\r\n"
+                                    echo "{\"created\": true, \"uuid\": \"$(echo $output | awk -F ' ' '{print $13}')\"}"
+                                case 'kvm*'
 
+                            end
+                        case 'del*'
+                            $path $dir info manage level del (echo "$request_argv" | string split '&') &>/dev/null
+                        case 'info*'
+                            echo -e "$200\r\n"
+                            $path $dir info manage level info (echo "$request_argv" | string split '&')
+                        case 'list/*'
+                            set level_3 (echo "$level_2" | sed 's/list\///g')
+                            switch $level_3
+                                case 'available*'
+                                    echo -e "$200\r\n"
+                                    $path $dir info manage level list available (echo "$request_argv" | string split '&')
+                                case installed
+                                    echo -e "$200\r\n"
+                                    $path $dir info manage level list installed
+                            end
+                    end
+                case 'service/*'
+                    set level_2 (echo "$level_1" | sed 's/service\///g')
+                    switch $level_2
+                        case 'del*'
+                            $path $dir info manage service del (echo "$request_argv" | string split '&') &>/dev/null
+                    end
+                case 'power/*'
+                    set level_2 (echo "$level_1" | sed 's/power\///g')
+                    switch $level_2
+                        case 'on*'
+                            $path $dir info manage service power on (echo "$request_argv" | string split '&') &>/dev/null
+                        case 'off*'
+                            $path $dir info manage service power off (echo "$request_argv" | string split '&') &>/dev/null
+                        case 'reboot*'
+                            $path $dir info manage service power reboot (echo "$request_argv" | string split '&') &>/dev/null
+                    end
+            end
+        case '/enter/*'
+        case '*'
+            echo -e "$404\r\n"
+            echo 'Unknown at logicpipe'
+    end
 end
+
 function api
-
+    set path (status --current-filename)
+    set dir (pwd)
+    set logicpipe (mktemp)
+    sed -n '/^function logicpipe/,/^end/p' $path | sed '1d; $d' | tee "$logicpipe" &>/dev/null
+    chmod +x "$logicpipe"
+    if test "$logcat" = debug
+        logger 2 "Logicpipe loaded"
+    end
+    trap "logger 2 Main thread stopped && rm $logicpipe" INT
+    set port $argv[2]
+    set ip $argv[3]
+    switch $argv[1]
+        case ss
+            set cert $argv[4]
+            set key $argv[5]
+            if test -e "$cert"; or test -e "$key";or test -r "$cert"; or test -r "$key"
+                logger 5 "Cert or key file is not available or readable"
+            else
+                socat openssl-listen:$port,bind=$ip,cert=$cert,key=$key,verify=0,reuseaddr,fork,end-close EXEC:"fish $logicpipe $ip $port "$path" "$dir""
+            end
+        case s
+            socat tcp-listen:$port,bind=$ip,reuseaddr,fork,end-close EXEC:"fish $logicpipe $ip $port "$path" "$dir""
+        case '*'
+            logger 5 "Option $argv[1] not found at backroom.host"
+    end
 end
-echo Build_Time_UTC=2022-09-03_04:01:35
+
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
 set -x target
 set -x root $argv[1]
 set -x logcat $argv[2]
-checkdependence jq curl sponge nano systemd-nspawn zstd tar xz
-if test -e $root
-    if test -d $root
-        if test -w $root; and test -r $root
-            if test -e "$root/level_index.json"
-                if test "$logcat" = debug
-                    logger 3 "Index is available"
-                end
-            else
-                if echo "[]" >"$root/level_index.json"
-                    if test "$logcat" = debug
-                        logger 3 "Index is available"
-                    end
-                else
-                    logger 5 "Can not create index file in $root"
-                    exit 1
-                end
-            end
-        else
-            logger 5 "root => $root is not Readable/Writable"
-            exit 1
-        end
-    else
-        logger 5 "root => $root is not a diretory file"
-        exit 1
-    end
-else
-    logger 5 "root => $root is not found"
-    exit 1
+if test -z $root
+    set root .
 end
+if test -z $logcat
+    set logcat info
+end
+checkdependence jq curl sponge nano systemd-nspawn zstd tar xz
 switch $argv[3]
     case enter
+        level_index_db
         switch $argv[4]
             case nspawn
                 br_nspawn $argv[5..-1]
@@ -994,6 +1121,7 @@ switch $argv[3]
                 br_kvm $argv[5..-1]
         end
     case manage
+        level_index_db
         switch $argv[4]
             case service
                 service $argv[5..-1]
@@ -1001,6 +1129,7 @@ switch $argv[3]
                 level $argv[5..-1]
         end
     case host
+        level_index_db
         api $argv[4..-1]
     case v version
         logger 1 "$codename@build$version"

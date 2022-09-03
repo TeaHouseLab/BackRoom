@@ -6,6 +6,8 @@ function level
                     level_add_kvm $argv[3..-1]
                 case rootfs
                     level_add_rootfs $argv[3..-1]
+                case '*'
+                    logger 5 "Option $argv[1] not found at backroom.level.add"
             end
         case del
             level_del $argv[2..-1]
