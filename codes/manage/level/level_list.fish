@@ -22,7 +22,8 @@ function level_list
             set meta (curl -sL $remote/streams/v1/images.json | jq -r '.products')
             echo $meta | jq -r 'keys | .[]'
         case installed
-            jq -er ".[] | .uuid + \" \" + .variant + \" \" + .date" "$root/level_index.json"
+            echo "| UUID | VARIANT | DATE ADDED | ALIAS |"
+            jq -er ".[] | .uuid + \"|\" + .variant + \"|\" + .date + \"|\" + .alias" "$root/level_index.json"
         case '*'
             logger 5 "Option $argv[1] not found at backroom.level_list"
     end

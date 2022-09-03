@@ -4,7 +4,7 @@ set -x ver 1
 set -x target
 set -x root $argv[1]
 set -x logcat $argv[2]
-checkdependence jq curl sponge nano systemd-nspawn
+checkdependence jq curl sponge nano systemd-nspawn zstd tar xz
 if test -e $root
     if test -d $root
         if test -w $root; and test -r $root

@@ -11,6 +11,8 @@ function level
             level_del $argv[2..-1]
         case info
             level_info $argv[2..-1]
+        case tar
+            level_tar $argv[2..-1]
         case list
             level_list $argv[2..-1]
         case alias

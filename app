@@ -94,7 +94,7 @@ function help_echo
         Subcommand: [level, service]
 
         manage level: Manage levels
-            Subcommand: [add, del, info, list, alias]
+            Subcommand: [add, del, info, tar,list, alias]
             
             level add: Create new levels from remote lxc repo or local disk image
                 Subcommand: [rootfs, kvm]
@@ -117,9 +117,20 @@ function help_echo
                 Syntax: level info [targets]
                 Example: backroom ./test debug manage level info a0d9300af25b473e95198427b2213008
 
+            level tar: Tar or Untar levels (backup levels) into one compressed datapack
+                Subcommand:: [tar, untar]
+
+                tar tar: Tar (backup) levels
+                Synatax: tar tar [targets]
+                Example: backroom . debug manage level tar tar Earth Moon
+
+                tar untar: Untar (import) levels
+                Synatax: tar untar [datapack]
+                Example: backroom . debug manage level tar untar the_world.brpack
+
             level list: Print installed and available levels
                 Subcommand: [available, installed]
-
+                
                 list available: List available levels in remote lxc repo
                 Synatax: list available [remote - http(s) only]
 
@@ -468,7 +479,8 @@ function level_list
             set meta (curl -sL $remote/streams/v1/images.json | jq -r '.products')
             echo $meta | jq -r 'keys | .[]'
         case installed
-            jq -er ".[] | .uuid + \" \" + .variant + \" \" + .date" "$root/level_index.json"
+            echo "| UUID | VARIANT | DATE ADDED | ALIAS |"
+            jq -er ".[] | .uuid + \"|\" + .variant + \"|\" + .date + \"|\" + .alias" "$root/level_index.json"
         case '*'
             logger 5 "Option $argv[1] not found at backroom.level_list"
     end
@@ -607,6 +619,59 @@ function level_exist
     end
 end
 
+function level_tar
+    set timestamp (date -u +"%Y-%m-%d-%H-%M-%S")
+    switch $argv[1]
+        case tar
+            echo "[]" >"$root/brpack.info"
+            set counter 1
+            for level in $argv[2..-1]
+                if level_exist $level
+                    set level_info (jq -er ".[] | select(.uuid==\"$target\")" "$root/level_index.json")
+                    jq ". + [$level_info]" "$root/brpack.info" | sponge "$root/brpack.info"
+                    set level_list[$counter] "$target"
+                    set counter (math "$counter+1")
+                else
+                    logger 5 "Level $level is not found under $root"
+                    set level_onboard false
+                end
+            end
+            if test "$level_onboard" = false
+                rm "$root/brpack.info"
+                logger 5 "You have levels aren't existed under this root"
+                return 1
+            else
+                logger 0 "Start packing levels"
+                if tar -I 'zstd -T0' -cf "$root/$timestamp.brpack" brpack.info $level_list
+                    rm "$root/brpack.info" 
+                    logger 2 "Level onboard, stored at $root/$timestamp.brpack"
+                else
+                    rm "$root/$timestamp.brpack" "$root/brpack.info"
+                    logger 5 "Failed to package levels"
+                end
+            end
+        case untar
+            set random (random)
+            mkdir "$root/"$random"untar"
+            logger 0 "Start untar levels"
+            if tar -I 'zstd -T0' -xf $argv[2] -C "$root/"$random"untar"
+                set brpack_json (cat "$root/"$random"untar/brpack.info")
+                for level in (echo "$brpack_json" | jq -er ".[] | .uuid")
+                    set level_info (echo "$brpack_json" | jq -er ".[] | select(.uuid==\"$level\")")
+                    mv "$root/"$random"untar/$level" "$root"
+                    jq ". + [$level_info]" "$root/level_index.json" | sponge "$root/level_index.json"
+                end
+                rm -rf "$root/"$random"untar"
+                logger 2 "Level merged into root $root"
+            else
+                rm -rf "$root/"$random"untar"
+                logger 5 "Failed to untar $argv[2]"
+            end
+        case '*'
+            logger 5 "Option $argv[1] not found at backroom.level.tar"
+    end
+end
+
 function level_add_rootfs
     set -x remote $argv[1]
     set -x targets $argv[2..-1]
@@ -695,6 +760,8 @@ function level
             level_del $argv[2..-1]
         case info
             level_info $argv[2..-1]
+        case tar
+            level_tar $argv[2..-1]
         case list
             level_list $argv[2..-1]
         case alias
@@ -879,14 +946,14 @@ end
 function api
 
 end
-echo Build_Time_UTC=2022-08-31_05:15:03
+echo Build_Time_UTC=2022-09-03_04:01:35
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
 set -x target
 set -x root $argv[1]
 set -x logcat $argv[2]
-checkdependence jq curl sponge nano systemd-nspawn
+checkdependence jq curl sponge nano systemd-nspawn zstd tar xz
 if test -e $root
     if test -d $root
         if test -w $root; and test -r $root

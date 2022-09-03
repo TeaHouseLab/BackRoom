@@ -42,7 +42,7 @@ function help_echo
         Subcommand: [level, service]
 
         manage level: Manage levels
-            Subcommand: [add, del, info, list, alias]
+            Subcommand: [add, del, info, tar,list, alias]
             
             level add: Create new levels from remote lxc repo or local disk image
                 Subcommand: [rootfs, kvm]
@@ -65,9 +65,20 @@ function help_echo
                 Syntax: level info [targets]
                 Example: backroom ./test debug manage level info a0d9300af25b473e95198427b2213008
 
+            level tar: Tar or Untar levels (backup levels) into one compressed datapack
+                Subcommand:: [tar, untar]
+
+                tar tar: Tar (backup) levels
+                Synatax: tar tar [targets]
+                Example: backroom . debug manage level tar tar Earth Moon
+
+                tar untar: Untar (import) levels
+                Synatax: tar untar [datapack]
+                Example: backroom . debug manage level tar untar the_world.brpack
+
             level list: Print installed and available levels
                 Subcommand: [available, installed]
-
+                
                 list available: List available levels in remote lxc repo
                 Synatax: list available [remote - http(s) only]
 
