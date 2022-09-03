@@ -15,8 +15,6 @@ Levels can be bring up from their service
 
 # help doc
 ```
-Build_Time_UTC=2022-08-30_07:55:48
-
 (./)app [root] [logcat] [enter, manage, host, v/version, h/help]
     root: The root of your backroom storage, all levels will be store here
     
@@ -24,7 +22,7 @@ Build_Time_UTC=2022-08-30_07:55:48
         Available: [info/*, debug]
     
     enter: Enter a backroom level (Aka. boot a virtual machine)
-        Subcommand: [nspawn, chroot]
+        Subcommand: [nspawn, chroot, kvm]
 
             enter chroot: Enter the level with chroot
             (!)This should be only used when configuring a level
@@ -44,20 +42,34 @@ Build_Time_UTC=2022-08-30_07:55:48
 
                     boot: Search and boot the level`s init system
                     (!)Need systemd-networkd to setup NAT layer for level(machine)
-                    Synatax: enter nspawn boot [target] [ports]
+                    Synatax: enter nspawn boot [target] [ports] [core] [ram] [extra nspawn args]
                     [target]: uuid/alias of the level
-                    [ports]: ports to be exposed
-                    Example: backroom ./test debug enter nspawn boot a0d9300af25b473e95198427b2213008
+                    [ports]: ports to be exposed(format: a-b or a,b or a)
+                    Example: backroom ./test debug enter nspawn boot a0d9300af25b473e95198427b2213008 22-25 50% 1024
+
+            enter kvm: Boot the level with qemu+kvm
+                Synatax: enter kvm [target] [ports] [core] [ram] [extra qemu args]
+                [target]: uuid/alias of the level
+                [ports]: ports to be exposed
+                Example: backroom ./test debug enter kvm a0d9300af25b473e95198427b2213008 '' 1 1024 -drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2-ovmf/x64/OVMF_CODE.fd
     
     manage: Manage backroom levels (Aka. setup/configure/manage a machine)
         Subcommand: [level, service]
 
         manage level: Manage levels
-            Subcommand: [add, del, info, list, alias]
+            Subcommand: [add, del, info, tar,list, alias]
             
-            level add: Create new levels from remote lxc repo
-                Syntax: level add [remote - http(s) only] [targets]
-                Example: backroom ./test debug manage level add https://mirrors.bfsu.edu.cn/lxc-images ubuntu:xenial:s390x:default ubuntu:xenial:amd64:default
+            level add: Create new levels from remote lxc repo or local disk image
+                Subcommand: [rootfs, kvm]
+                
+                add rootfs: Create levels as rootfs from remote repo(nspawn, chroot)
+                    Synatax: add rootfs [remote - http(s) only] [targets]
+                    Example: backroom ./test debug manage level add rootfs https://mirrors.bfsu.edu.cn/lxc-images ubuntu:xenial:s390x:default ubuntu:xenial:amd64:default
+
+                add kvm: Create a level as qcow2 disk image from local disk image(kvm+qemu)
+                    Synatax: add kvm [target]
+                    [target]: Will be the seed(template) of the new level
+                    Example: backroom ./test debug manage level add kvm ../template/debian-11.qcow2
                 
             level del: Destroy levels
                 Syntax: level del [targets]
@@ -68,9 +80,20 @@ Build_Time_UTC=2022-08-30_07:55:48
                 Syntax: level info [targets]
                 Example: backroom ./test debug manage level info a0d9300af25b473e95198427b2213008
 
+            level tar: Tar or Untar levels (backup levels) into one compressed datapack
+                Subcommand:: [tar, untar]
+
+                tar tar: Tar (backup) levels
+                Synatax: tar tar [targets]
+                Example: backroom . debug manage level tar tar Earth Moon
+
+                tar untar: Untar (import) levels
+                Synatax: tar untar [datapack]
+                Example: backroom . debug manage level tar untar the_world.brpack
+
             level list: Print installed and available levels
                 Subcommand: [available, installed]
-
+                
                 list available: List available levels in remote lxc repo
                 Synatax: list available [remote - http(s) only]
 
@@ -85,8 +108,15 @@ Build_Time_UTC=2022-08-30_07:55:48
             Subcommand: [add, del, edit, power, stat]
 
             service add: Add services for levels
-                Synatax: service add [targets]
-                Example: backroom ./test debug manage service add Earth f6c23a26881f4bf8bf9aa2af19d38548
+                Subcommand: [rootfs, kvm]
+
+                add rootfs: Add services for rootfs levels
+                    Synatax: add rootfs [targets]
+                    Example: backroom ./test debug manage service add rootfs Earth f6c23a26881f4bf8bf9aa2af19d38548
+
+                add kvm: Add services for kvm levels
+                    Synatax: add kvm [targets]
+                    Example: backroom ./test debug manage service add kvm Earth f6c23a26881f4bf8bf9aa2af19d38548
 
             service del: Remove services for levels
                 Synatax: service del [targets]
@@ -105,7 +135,16 @@ Build_Time_UTC=2022-08-30_07:55:48
                 Example: backroom ./test debug manage service stat Earth
             
     host: Run backroom as an daemon, provide custom api for easier hosting in OpenVZ style
-    
+        Subcommand: [s, ss]
+
+            host s: Run api server without ssl encrypted (Not recommend)
+            Synatax: host s [port] [address]
+            Example: backroom . debug host s 8080 0.0.0.0
+
+            host ss: Run api server with ssl encrypted
+            Synatax: host ss [port] [address] [cert] [key]
+            Example: backroom . debug host ss 443 0.0.0.0 /home/fullchain.crt /home/server.key
+
     v/version: Print version
     
     h/help: Show this msg again
