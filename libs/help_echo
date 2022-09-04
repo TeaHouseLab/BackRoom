@@ -132,7 +132,7 @@ function help_echo
 
         [api documents]
         Synatax and URL: [host]/manage/[level, service, power]/[add, del, info, list/del/on, off, reboot]?argvs
-        Example: curl '127.0.0.1:8080/manage/level/add/rootfs?mirror.bfsu.edu.cn/lxc-images&debian:bullseye:amd64:default'
+        Example: curl \'127.0.0.1:8080/manage/level/add/rootfs?mirror.bfsu.edu.cn/lxc-images&debian:bullseye:amd64:default\'
 
     v/version: Print version
     

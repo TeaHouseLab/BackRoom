@@ -1163,6 +1163,7 @@ function api
     end
 end
 
+echo Build_Time_UTC=2022-09-04_05:06:08
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
