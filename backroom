@@ -844,7 +844,7 @@ function br_nspawn
     jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
     switch $argv[1]
         case exec
-            sudo systemd-nspawn --resolv-conf=off -q -D "$root/$target" $target_arg $argv[2..-1]
+            sudo systemd-nspawn --resolv-conf=off -q -D "$root/$target" $target_arg $argv[3..-1]
         case boot
             if setup_network
             else
@@ -1037,7 +1037,6 @@ Content-Type:*/*; charset=UTF-8"
                                 case 'rootfs*'
                                     if set output ($path $dir info manage level add rootfs (echo "$request_argv" | string split '&'))
                                         status_return 200
-                                        echo $output
                                         echo "{\"succeeded\": true, \"uuid\": \"$(echo $output | awk -F ' ' '{print $(NF-2)}')\"}"
                                     else
                                         status_return 500
@@ -1163,6 +1162,7 @@ function api
     end
 end
 
+echo Build_Time_UTC=2022-09-05_08:41:38
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1

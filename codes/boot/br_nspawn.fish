@@ -9,7 +9,7 @@ function br_nspawn
     jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
     switch $argv[1]
         case exec
-            sudo systemd-nspawn --resolv-conf=off -q -D "$root/$target" $target_arg $argv[2..-1]
+            sudo systemd-nspawn --resolv-conf=off -q -D "$root/$target" $target_arg $argv[3..-1]
         case boot
             if setup_network
             else
