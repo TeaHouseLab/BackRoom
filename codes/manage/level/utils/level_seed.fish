@@ -5,6 +5,7 @@ function level_seed
     set path (echo $meta | jq -r ".[\"$target\"].versions|.[\"$latest\"].items |.[\"root.tar.xz\"].path")
     if echo "$path" | grep -qs null
         logger 5 "Target does not exist in remote repo"
+        return 1
     else
         set sha256 (echo $meta | jq -r ".[\"$target\"].versions|.[\"$latest\"].items |.[\"root.tar.xz\"].sha256")
     end
