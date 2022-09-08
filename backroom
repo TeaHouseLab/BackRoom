@@ -372,7 +372,7 @@ function service_power
                             service_add_rootfs "$target"
                         end
                         if systemctl start backroom-$target; and systemctl enable backroom-$target
-                            jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
+                            jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" "$root/level_index.json"
                             logger 2 "Level $level is up and enabled at startup"
                         else
                             logger 5 "Failed to bring up level $level"
@@ -394,7 +394,7 @@ function service_power
                                 logger 5 "Failed to put down level $level"
                             end
                         else
-                            if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
+                            if test (jq -er ".levels[] | select(.uuid==\"$target\").stat" "$root/level_index.json") = down
                                 logger 4 "Level $level has already down"
                             else
                                 logger 5 "Unknown stat code for level $level"
@@ -871,7 +871,7 @@ function br_nspawn
         logger 5 "Level $target is not found under $root"
         exit 1
     end
-    jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+    jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
     switch $argv[1]
         case exec
             sudo systemd-nspawn --resolv-conf=off -q -D "$root/$target" $target_arg $argv[3..-1]
@@ -920,7 +920,7 @@ function br_nspawn
             logger 5 "Option $argv[1] not found at backroom.nspawn"
             return 1
     end
-    jq -re "[.[] | select(.uuid==\"$target\").stat = \"down\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+    jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"down\"" "$root/level_index.json" | sponge "$root/level_index.json"
 end
 
 function mount_utils
@@ -976,49 +976,52 @@ function setup_network
 end
 
 function br_kvm
-set target $argv[1]
-if level_exist "$target"
-else
-    logger 5 "Level $target is not found under $root"
-    exit 1
-end
-set target_port $argv[2]
-set target_core $argv[3]
-set target_mem $argv[4]
-set target_arg $argv[5..-1]
-if test -z "$target_port"
-    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" $target_arg -hda "$root/$target"
-else
-    set port_range $target_port
-    if echo $port_range | grep -qs -
-        set -e port_mapping_tcp
-        set -e port_mapping_udp
-        set -e port_mapping
-        set port_counter 0
-        for port_arrary in (seq (echo $port_range | awk -F "-" '{print $1}') (echo $port_range | awk -F "-" '{print $2}'))
-            set port_counter (math $port_counter+1)
-            set port_mapping_tcp[$port_counter] ",hostfwd=tcp::$port_arrary-:$port_arrary"
-            set port_mapping_udp[$port_counter] ",hostfwd=udp::$port_arrary-:$port_arrary"
-        end
+    set target $argv[1]
+    if level_exist "$target"
     else
-        if echo $port_range | grep -qs ,
+        logger 5 "Level $target is not found under $root"
+        exit 1
+    end
+    jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
+    set target_port $argv[2]
+    set target_core $argv[3]
+    set target_mem $argv[4]
+    set target_arg $argv[5..-1]
+    if test -z "$target_port"
+        qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" $target_arg -hda "$root/$target"
+    else
+        set port_range $target_port
+        if echo $port_range | grep -qs -
             set -e port_mapping_tcp
             set -e port_mapping_udp
             set -e port_mapping
             set port_counter 0
-            for port_arrary in (echo $port_range | string split ,)
+            for port_arrary in (seq (echo $port_range | awk -F "-" '{print $1}') (echo $port_range | awk -F "-" '{print $2}'))
                 set port_counter (math $port_counter+1)
                 set port_mapping_tcp[$port_counter] ",hostfwd=tcp::$port_arrary-:$port_arrary"
                 set port_mapping_udp[$port_counter] ",hostfwd=udp::$port_arrary-:$port_arrary"
             end
         else
-            set port_mapping_tcp ",hostfwd=tcp::$target_port-:$target_port"
-            set port_mapping_udp ",hostfwd=udp::$target_port-:$target_port"
+            if echo $port_range | grep -qs ,
+                set -e port_mapping_tcp
+                set -e port_mapping_udp
+                set -e port_mapping
+                set port_counter 0
+                for port_arrary in (echo $port_range | string split ,)
+                    set port_counter (math $port_counter+1)
+                    set port_mapping_tcp[$port_counter] ",hostfwd=tcp::$port_arrary-:$port_arrary"
+                    set port_mapping_udp[$port_counter] ",hostfwd=udp::$port_arrary-:$port_arrary"
+                end
+            else
+                set port_mapping_tcp ",hostfwd=tcp::$target_port-:$target_port"
+                set port_mapping_udp ",hostfwd=udp::$target_port-:$target_port"
+            end
         end
+        qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp $target_arg -hda "$root/$target"
     end
-    qemu-system-x86_64 --enable-kvm -smp "$target_core" -m "$target_mem" -nic user$port_mapping_tcp $port_mapping_udp $target_arg -hda "$root/$target"
+    jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"down\"" "$root/level_index.json" | sponge "$root/level_index.json"
 end
-end
+
 function logicpipe
     while read request_raw
         set request_raw_process (echo $request_raw | tr '\r' ' ')
@@ -1192,7 +1195,7 @@ function api
     end
 end
 
-echo Build_Time_UTC=2022-09-08_04:49:27
+echo Build_Time_UTC=2022-09-08_05:59:52
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
@@ -1216,6 +1219,8 @@ switch $argv[3]
                 br_chroot $argv[5..-1]
             case kvm
                 br_kvm $argv[5..-1]
+            case '*'
+                logger 5 "Option $argv[1] not found at backroom.enter"
         end
     case manage
         level_index_db
@@ -1224,6 +1229,8 @@ switch $argv[3]
                 service $argv[5..-1]
             case level
                 level $argv[5..-1]
+            case '*'
+                logger 5 "Option $argv[1] not found at backroom.manage"
         end
     case host
         level_index_db

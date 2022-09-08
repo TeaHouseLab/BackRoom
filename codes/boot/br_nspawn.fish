@@ -6,7 +6,7 @@ function br_nspawn
         logger 5 "Level $target is not found under $root"
         exit 1
     end
-    jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+    jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
     switch $argv[1]
         case exec
             sudo systemd-nspawn --resolv-conf=off -q -D "$root/$target" $target_arg $argv[3..-1]
@@ -55,5 +55,5 @@ function br_nspawn
             logger 5 "Option $argv[1] not found at backroom.nspawn"
             return 1
     end
-    jq -re "[.[] | select(.uuid==\"$target\").stat = \"down\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+    jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"down\"" "$root/level_index.json" | sponge "$root/level_index.json"
 end

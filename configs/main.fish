@@ -21,6 +21,8 @@ switch $argv[3]
                 br_chroot $argv[5..-1]
             case kvm
                 br_kvm $argv[5..-1]
+            case '*'
+                logger 5 "Option $argv[1] not found at backroom.enter"
         end
     case manage
         level_index_db
@@ -29,6 +31,8 @@ switch $argv[3]
                 service $argv[5..-1]
             case level
                 level $argv[5..-1]
+            case '*'
+                logger 5 "Option $argv[1] not found at backroom.manage"
         end
     case host
         level_index_db
