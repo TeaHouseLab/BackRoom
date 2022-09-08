@@ -32,7 +32,7 @@ function level_tar
         case untar
             set random (random)
             mkdir "$root/"$random"untar"
-            logger 0 "Start untar levels"
+            logger 0 "Start untaring levels"
             if tar -I 'zstd -T0' -xf $argv[2] -C "$root/"$random"untar"
                 set brpack_json (cat "$root/"$random"untar/brpack.info")
                 for level in (echo "$brpack_json" | jq -er ".[] | .uuid")
