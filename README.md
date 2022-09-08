@@ -1,17 +1,17 @@
 # backroom
 <img src="https://github.com/TeaHouseLab/TeaHouseArtworks/blob/main/OtherProjects/backroom.svg?raw=true" alt="logo" style="width:256px;"/>
 
-A new virtualization system built on chroot, nspawn and QEMU+kvm with api support built-in
+A new virtualization management system built on chroot, nspawn and QEMU+kvm with api support built-in
 
-**BackRoom - TeaHouseLab's next level high performance virtualization system**
+**BackRoom - TeaHouseLab's next level low performance virtualization system**
 
 # Levels
-Levels are isolated space in backroom(For older: it's virtual machines)
+Levels are isolated space in backroom(aka virtual machines)
 
-Levels can be entered (load/boot or whatever) with QEMU+kvm(full virtualization) or nspawn(os level virtualization)
+Levels can be launched (load/boot or whatever) with QEMU+kvm or nspawn(os-level virtualization)
 
 # Service
-Levels can be bring up from their service
+Levels can be brought up from their service
 
 # help doc
 ```
