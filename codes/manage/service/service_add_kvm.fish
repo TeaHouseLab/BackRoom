@@ -17,7 +17,7 @@ Restart=on-failure
 RestartSec=5
 [Install]
 WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &>/dev/null
-                jq -re "[.[] | select(.uuid==\"$target\").service = \"true\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                jq -re "(.levels[] | select(.uuid==\"$target\").service) |= \"true\"" "$root/level_index.json" | sponge "$root/level_index.json"
                 logger 2 "Service has been created for level $level at /etc/systemd/system/backroom-$target.service"
             end
         else

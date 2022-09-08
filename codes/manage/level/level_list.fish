@@ -3,8 +3,22 @@ function level_list
         case available
             set remote $argv[2]
             if test -z $remote
-                logger 5 "No remote configured"
-                exit 1
+                if test -z (jq -re ".remote " "$root/level_index.json")
+                    logger 5 "No remote configured"
+                    exit 1
+                else
+                    if test "$logcat" = debug
+                        logger 3 "Remote set from storage"
+                    end
+                    set remote (jq -re ".remote " "$root/level_index.json")
+                end
+            else
+                if test -z (jq -re ".remote " "$root/level_index.json")
+                    jq -re ".remote |= \"$remote\"" "$root/level_index.json" | sponge "$root/level_index.json"
+                    if test "$logcat" = debug
+                        logger 3 "Remote stored"
+                    end
+                end
             end
             if test "$logcat" = debug
                 logger 3 "Set remote lxc repo to $remote"
@@ -22,7 +36,7 @@ function level_list
             set meta (curl -sL $remote/streams/v1/images.json | jq -r '.products')
             echo $meta | jq -r 'keys'
         case installed
-            jq -er '[.[] | {"uuid": .uuid, "variant": .variant, "alias": .alias}]'  "$root/level_index.json"
+            jq -er '[.levels[] | {"uuid": .uuid, "variant": .variant, "alias": .alias}]'  "$root/level_index.json"
         case '*'
             logger 5 "Option $argv[1] not found at backroom.level_list"
     end

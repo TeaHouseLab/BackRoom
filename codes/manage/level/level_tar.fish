@@ -6,7 +6,7 @@ function level_tar
             set counter 1
             for level in $argv[2..-1]
                 if level_exist $level
-                    set level_info (jq -er ".[] | select(.uuid==\"$target\")" "$root/level_index.json")
+                    set level_info (jq -er ".levels[] | select(.uuid==\"$target\")" "$root/level_index.json")
                     jq ". + [$level_info]" "$root/brpack.info" | sponge "$root/brpack.info"
                     set level_list[$counter] "$target"
                     set counter (math "$counter+1")
@@ -38,7 +38,7 @@ function level_tar
                 for level in (echo "$brpack_json" | jq -er ".[] | .uuid")
                     set level_info (echo "$brpack_json" | jq -er ".[] | select(.uuid==\"$level\")")
                     mv "$root/"$random"untar/$level" "$root"
-                    jq ". + [$level_info]" "$root/level_index.json" | sponge "$root/level_index.json"
+                    jq ".levels |= . + [$level_info]" "$root/level_index.json" | sponge "$root/level_index.json"
                 end
                 rm -rf "$root/"$random"untar"
                 logger 2 "Level merged into root $root"

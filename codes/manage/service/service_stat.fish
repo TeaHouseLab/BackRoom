@@ -2,7 +2,7 @@ function service_stat
     for level in $argv
         if level_exist "$level"
             if service_exist "$level"
-                set power_stat (jq -re ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json")
+                set power_stat (jq -re ".levels[] | select(.uuid==\"$target\").stat" "$root/level_index.json")
                 if test "$power_stat" = up
                     set_color green
                     echo "$level is up"

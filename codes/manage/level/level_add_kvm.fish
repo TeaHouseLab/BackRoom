@@ -4,7 +4,7 @@ function level_add_kvm
     set timestamp (date -u +"%Y-%m-%d-%H:%M:%S")
     if file $seed | grep -qs Image
         if cp $seed $uuid
-            jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"kvm_machine\",\"type\": \"disk\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
+            jq ".levels |= . + [{\"uuid\": \"$uuid\" ,\"variant\": \"kvm_machine\",\"type\": \"disk\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
             logger 2 "Level $uuid spawned"
         else
             logger 5 "Failed to spawn level from $seed"

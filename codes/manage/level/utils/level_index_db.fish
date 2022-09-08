@@ -7,7 +7,7 @@ function level_index_db
                         logger 3 "Index is available"
                     end
                 else
-                    if echo "[]" >"$root/level_index.json"
+                    if echo '{"remote": "", "levels": []}' >"$root/level_index.json"
                         if test "$logcat" = debug
                             logger 3 "Index is available"
                         end

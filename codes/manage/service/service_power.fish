@@ -4,15 +4,15 @@ function service_power
             for level in $argv[2..-1]
                 if level_exist "$level"
                     if service_exist "$level"
-                        if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
+                        if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
                             if systemctl start backroom-$target; and systemctl enable backroom-$target
-                                jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                                jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
                                 logger 2 "Level $level is up and enabled at startup"
                             else
                                 logger 5 "Failed to bring up level $level"
                             end
                         else
-                            if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
+                            if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
                                 logger 4 "Level $level has already up"
                             else
                                 logger 5 "Unknown stat code for level $level"
@@ -20,13 +20,13 @@ function service_power
                             end
                         end
                     else
-                        if test "$(jq -re ".[] | select(.uuid=\"$target\").variant" "$root/level_index.json")" = kvm_machine
+                        if test "$(jq -re ".levels[] | select(.uuid=\"$target\").variant" "$root/level_index.json")" = kvm_machine
                             service_add_kvm "$target"
                         else
                             service_add_rootfs "$target"
                         end
                         if systemctl start backroom-$target; and systemctl enable backroom-$target
-                            jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                            jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
                             logger 2 "Level $level is up and enabled at startup"
                         else
                             logger 5 "Failed to bring up level $level"
@@ -40,15 +40,15 @@ function service_power
             for level in $argv[2..-1]
                 if level_exist "$level"
                     if service_exist "$level"
-                        if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
+                        if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
                             if systemctl stop backroom-$target; and systemctl disable backroom-$target
-                                jq -re "[.[] | select(.uuid==\"$target\").stat = \"down\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                                jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"down\"" "$root/level_index.json" | sponge "$root/level_index.json"
                                 logger 2 "Level $level is down and disabled at startup"
                             else
                                 logger 5 "Failed to put down level $level"
                             end
                         else
-                            if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
+                            if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
                                 logger 4 "Level $level has already down"
                             else
                                 logger 5 "Unknown stat code for level $level"

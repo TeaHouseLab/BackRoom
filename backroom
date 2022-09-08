@@ -250,7 +250,7 @@ Restart=on-failure
 RestartSec=5
 [Install]
 WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &>/dev/null
-                jq -re "[.[] | select(.uuid==\"$target\").service = \"true\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                jq -re "(.levels[] | select(.uuid==\"$target\").service) |= \"true\"" "$root/level_index.json" | sponge "$root/level_index.json"
                 logger 2 "Service has been created for level $level at /etc/systemd/system/backroom-$target.service"
             end
         else
@@ -263,7 +263,7 @@ function service_stat
     for level in $argv
         if level_exist "$level"
             if service_exist "$level"
-                set power_stat (jq -re ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json")
+                set power_stat (jq -re ".levels[] | select(.uuid==\"$target\").stat" "$root/level_index.json")
                 if test "$power_stat" = up
                     set_color green
                     echo "$level is up"
@@ -319,7 +319,7 @@ Restart=on-failure
 RestartSec=5
 [Install]
 WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &>/dev/null
-                jq -re "[.[] | select(.uuid==\"$target\").service = \"true\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                jq -re "(.levels[] | select(.uuid==\"$target\").service) |= \"true\"" "$root/level_index.json" | sponge "$root/level_index.json"
                 logger 2 "Service has been created for level $level at /etc/systemd/system/backroom-$target.service"
             end
         else
@@ -333,7 +333,7 @@ function service_del
         if level_exist "$level"
             if service_exist "$level"
                 rm /etc/systemd/system/backroom-$target.service
-                jq -re "[.[] | select(.uuid==\"$target\").service = \"false\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                jq -re "(.levels[] | select(.uuid==\"$target\").service) |= \"false\"" "$root/level_index.json" | sponge "$root/level_index.json"
                 logger 2 "Service file for level $level has been removed from /etc/systemd/system/backroom-$target.service"
             else
                 logger 5 "Service file for level $level is not found"
@@ -350,15 +350,15 @@ function service_power
             for level in $argv[2..-1]
                 if level_exist "$level"
                     if service_exist "$level"
-                        if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
+                        if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
                             if systemctl start backroom-$target; and systemctl enable backroom-$target
-                                jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                                jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
                                 logger 2 "Level $level is up and enabled at startup"
                             else
                                 logger 5 "Failed to bring up level $level"
                             end
                         else
-                            if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
+                            if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
                                 logger 4 "Level $level has already up"
                             else
                                 logger 5 "Unknown stat code for level $level"
@@ -366,13 +366,13 @@ function service_power
                             end
                         end
                     else
-                        if test "$(jq -re ".[] | select(.uuid=\"$target\").variant" "$root/level_index.json")" = kvm_machine
+                        if test "$(jq -re ".levels[] | select(.uuid=\"$target\").variant" "$root/level_index.json")" = kvm_machine
                             service_add_kvm "$target"
                         else
                             service_add_rootfs "$target"
                         end
                         if systemctl start backroom-$target; and systemctl enable backroom-$target
-                            jq -re "[.[] | select(.uuid==\"$target\").stat = \"up\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                            jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
                             logger 2 "Level $level is up and enabled at startup"
                         else
                             logger 5 "Failed to bring up level $level"
@@ -386,15 +386,15 @@ function service_power
             for level in $argv[2..-1]
                 if level_exist "$level"
                     if service_exist "$level"
-                        if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
+                        if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
                             if systemctl stop backroom-$target; and systemctl disable backroom-$target
-                                jq -re "[.[] | select(.uuid==\"$target\").stat = \"down\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+                                jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"down\"" "$root/level_index.json" | sponge "$root/level_index.json"
                                 logger 2 "Level $level is down and disabled at startup"
                             else
                                 logger 5 "Failed to put down level $level"
                             end
                         else
-                            if test (jq -er ".[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
+                            if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
                                 logger 4 "Level $level has already down"
                             else
                                 logger 5 "Unknown stat code for level $level"
@@ -421,7 +421,7 @@ end
 function service_exist
     set target $argv[1]
     if level_exist "$target"
-        if jq -er ".[] | select(.uuid==\"$target\") | select(.service==\"false\")" "$root/level_index.json" &>/dev/null
+        if jq -er ".levels[] | select(.uuid==\"$target\") | select(.service==\"false\")" "$root/level_index.json" &>/dev/null
             if test -e /etc/systemd/system/backroom-$target.service
                 return 0
             else
@@ -442,7 +442,7 @@ function level_del
             service_power off "$target"
             service_del "$target"
             if rm -rf "$root/$target"
-                jq -er "del(.[] | select(.uuid == \"$target\"))" "$root/level_index.json" | sponge "$root/level_index.json"
+                jq -er "del(.levels[] | select(.uuid == \"$target\"))" "$root/level_index.json" | sponge "$root/level_index.json"
                 logger 2 "Level $level at "$root/$target" has been destroyed"
             else
                 logger 5 "Failed to destroy level $level"
@@ -460,7 +460,7 @@ function level_add_kvm
     set timestamp (date -u +"%Y-%m-%d-%H:%M:%S")
     if file $seed | grep -qs Image
         if cp $seed $uuid
-            jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"kvm_machine\",\"type\": \"disk\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
+            jq ".levels |= . + [{\"uuid\": \"$uuid\" ,\"variant\": \"kvm_machine\",\"type\": \"disk\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
             logger 2 "Level $uuid spawned"
         else
             logger 5 "Failed to spawn level from $seed"
@@ -476,8 +476,22 @@ function level_list
         case available
             set remote $argv[2]
             if test -z $remote
-                logger 5 "No remote configured"
-                exit 1
+                if test -z (jq -re ".remote " "$root/level_index.json")
+                    logger 5 "No remote configured"
+                    exit 1
+                else
+                    if test "$logcat" = debug
+                        logger 3 "Remote set from storage"
+                    end
+                    set remote (jq -re ".remote " "$root/level_index.json")
+                end
+            else
+                if test -z (jq -re ".remote " "$root/level_index.json")
+                    jq -re ".remote |= \"$remote\"" "$root/level_index.json" | sponge "$root/level_index.json"
+                    if test "$logcat" = debug
+                        logger 3 "Remote stored"
+                    end
+                end
             end
             if test "$logcat" = debug
                 logger 3 "Set remote lxc repo to $remote"
@@ -495,7 +509,7 @@ function level_list
             set meta (curl -sL $remote/streams/v1/images.json | jq -r '.products')
             echo $meta | jq -r 'keys'
         case installed
-            jq -er '[.[] | {"uuid": .uuid, "variant": .variant, "alias": .alias}]'  "$root/level_index.json"
+            jq -er '[.levels[] | {"uuid": .uuid, "variant": .variant, "alias": .alias}]'  "$root/level_index.json"
         case '*'
             logger 5 "Option $argv[1] not found at backroom.level_list"
     end
@@ -504,7 +518,7 @@ end
 function level_info
     for level in $argv
         if level_exist "$level"
-            jq -er ".[] | select(.uuid==\"$target\")" "$root/level_index.json"
+            jq -er ".levels[] | select(.uuid==\"$target\")" "$root/level_index.json"
         else
             logger 5 "Level $level is not found under $root"
         end
@@ -556,7 +570,7 @@ function level_index_db
                         logger 3 "Index is available"
                     end
                 else
-                    if echo "[]" >"$root/level_index.json"
+                    if echo '{"remote": "", "levels": []}' >"$root/level_index.json"
                         if test "$logcat" = debug
                             logger 3 "Index is available"
                         end
@@ -586,6 +600,7 @@ function level_seed
     set path (echo $meta | jq -r ".[\"$target\"].versions|.[\"$latest\"].items |.[\"root.tar.xz\"].path")
     if echo "$path" | grep -qs null
         logger 5 "Target does not exist in remote repo"
+        return 1
     else
         set sha256 (echo $meta | jq -r ".[\"$target\"].versions|.[\"$latest\"].items |.[\"root.tar.xz\"].sha256")
     end
@@ -629,9 +644,9 @@ end
 function level_exist
     set target $argv[1]
     set level_json (cat "$root/level_index.json")
-    if echo "$level_json" | jq -er ".[] | select(.uuid==\"$target\")" &>/dev/null
-        set target (echo "$level_json" | jq -r ".[] | select(.uuid==\"$target\").uuid")
-        if test (echo "$level_json" | jq -r ".[] | select(.uuid==\"$target\").variant") = kvm_machine
+    if echo "$level_json" | jq -er ".levels[] | select(.uuid==\"$target\")" &>/dev/null
+        set target (echo "$level_json" | jq -r ".levels[] | select(.uuid==\"$target\").uuid")
+        if test (echo "$level_json" | jq -r ".levels[] | select(.uuid==\"$target\").variant") = kvm_machine
             if test -e $root/$target
                 return 0
             else
@@ -645,9 +660,9 @@ function level_exist
             end
         end
     else
-        if echo "$level_json" | jq -er ".[] | select(.alias==\"$target\")" &>/dev/null
-            set target (echo "$level_json" | jq -r ".[] | select(.alias==\"$target\").uuid")
-            if test (echo "$level_json" | jq -r ".[] | select(.uuid==\"$target\").variant") = kvm_machine
+        if echo "$level_json" | jq -er ".levels[] | select(.alias==\"$target\")" &>/dev/null
+            set target (echo "$level_json" | jq -r ".levels[] | select(.alias==\"$target\").uuid")
+            if test (echo "$level_json" | jq -r ".levels[] | select(.uuid==\"$target\").variant") = kvm_machine
                 if test -e $root/$target
                     return 0
                 else
@@ -674,7 +689,7 @@ function level_tar
             set counter 1
             for level in $argv[2..-1]
                 if level_exist $level
-                    set level_info (jq -er ".[] | select(.uuid==\"$target\")" "$root/level_index.json")
+                    set level_info (jq -er ".levels[] | select(.uuid==\"$target\")" "$root/level_index.json")
                     jq ". + [$level_info]" "$root/brpack.info" | sponge "$root/brpack.info"
                     set level_list[$counter] "$target"
                     set counter (math "$counter+1")
@@ -706,7 +721,7 @@ function level_tar
                 for level in (echo "$brpack_json" | jq -er ".[] | .uuid")
                     set level_info (echo "$brpack_json" | jq -er ".[] | select(.uuid==\"$level\")")
                     mv "$root/"$random"untar/$level" "$root"
-                    jq ". + [$level_info]" "$root/level_index.json" | sponge "$root/level_index.json"
+                    jq ".levels |= . + [$level_info]" "$root/level_index.json" | sponge "$root/level_index.json"
                 end
                 rm -rf "$root/"$random"untar"
                 logger 2 "Level merged into root $root"
@@ -725,8 +740,22 @@ function level_add_rootfs
     set -x timestamp (date -u +"%Y-%m-%d-%H:%M:%S")
     set -x check
     if test -z $remote
-        logger 5 "No remote configured"
-        exit 1
+        if test -z (jq -re ".remote " "$root/level_index.json")
+            logger 5 "No remote configured"
+            exit 1
+        else
+            if test "$logcat" = debug
+                logger 3 "Remote set from storage"
+            end
+            set remote (jq -re ".remote " "$root/level_index.json")
+        end
+    else
+        if test -z (jq -re ".remote " "$root/level_index.json")
+            jq -re ".remote |= \"$remote\"" "$root/level_index.json" | sponge "$root/level_index.json"
+            if test "$logcat" = debug
+                logger 3 "Remote stored"
+            end
+        end
     end
     if test "$logcat" = debug
         logger 3 "Set remote lxc repo to $remote"
@@ -744,12 +773,13 @@ function level_add_rootfs
     for target in $targets
         if level_seed $target
         else
+            return 1
             continue
         end
         set uuid (cat /proc/sys/kernel/random/uuid | sed 's/-//g')
         mkdir $uuid
         tar --force-local -xf "$root/.package/$target.level" -C "$root/$uuid"
-        jq ". + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\",\"type\": \"rootfs\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
+        jq ".levels |= . + [{\"uuid\": \"$uuid\" ,\"variant\": \"$target\",\"type\": \"rootfs\" , \"alias\": \"\", \"date\": \"$timestamp\", \"service\": \"false\", \"stat\": \"down\"}]" "$root/level_index.json" | sponge "$root/level_index.json"
         if level_spawn $uuid
             logger 2 "Level $uuid spawned"
         else
@@ -762,7 +792,7 @@ function level_alias
     set target $argv[1]
     set alias $argv[2]
     if level_exist $target
-        if jq -re "[.[] | select(.uuid==\"$target\").alias = \"$alias\"]" "$root/level_index.json" | sponge "$root/level_index.json"
+        if jq -re "(.levels[] | select(.uuid==\"$target\").alias) |= \"$alias\"" "$root/level_index.json" | sponge "$root/level_index.json"
             logger 2 "Set alias $alias for level $target"
         else
             logger 5 "Failed to set alias for level $target"
@@ -1162,7 +1192,7 @@ function api
     end
 end
 
-echo Build_Time_UTC=2022-09-05_08:41:38
+echo Build_Time_UTC=2022-09-08_03:49:15
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 1
