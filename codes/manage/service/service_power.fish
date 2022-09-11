@@ -6,7 +6,6 @@ function service_power
                     if service_exist "$level"
                         if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = down
                             if systemctl start backroom-$target; and systemctl enable backroom-$target
-                                jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" | sponge "$root/level_index.json"
                                 logger 2 "Level $level is up and enabled at startup"
                             else
                                 logger 5 "Failed to bring up level $level"
@@ -26,7 +25,6 @@ function service_power
                             service_add_rootfs "$target"
                         end
                         if systemctl start backroom-$target; and systemctl enable backroom-$target
-                            jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"up\"" "$root/level_index.json" "$root/level_index.json"
                             logger 2 "Level $level is up and enabled at startup"
                         else
                             logger 5 "Failed to bring up level $level"
