@@ -266,7 +266,11 @@ WantedBy=multi-user.target" | tee /etc/systemd/system/backroom-$target.service &
 end
 
 function service_stat
-    for level in $argv
+    set levels $argv
+    if test -z $argv
+        set levels (jq -er '.levels[].uuid' "$root/level_index.json")
+    end
+    for level in $levels
         if level_exist "$level"
             if service_exist "$level"
                 set power_stat (jq -re ".levels[] | select(.uuid==\"$target\").stat" "$root/level_index.json")
@@ -1222,7 +1226,7 @@ function api
     end
 end
 
-echo Build_Time_UTC=2022-09-16_14:58:05
+echo Build_Time_UTC=2022-09-16_15:01:45
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 2

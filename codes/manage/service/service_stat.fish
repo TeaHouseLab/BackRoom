@@ -1,5 +1,9 @@
 function service_stat
-    for level in $argv
+    set levels $argv
+    if test -z $argv
+        set levels (jq -er '.levels[].uuid' "$root/level_index.json")
+    end
+    for level in $levels
         if level_exist "$level"
             if service_exist "$level"
                 set power_stat (jq -re ".levels[] | select(.uuid==\"$target\").stat" "$root/level_index.json")
