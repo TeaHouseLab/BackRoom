@@ -77,20 +77,22 @@ function help_echo
                 Example: backroom . debug manage level tar untar the_world.brpack
 
             level list: Print installed and available levels
-                Subcommand: [available, installed]
+                Subcommand: [available, installed, <null>]
                 
                 list available: List available levels in remote lxc repo
                 Synatax: list available [remote - http(s) only]
 
                 list installed: List installed levels in this root
-                Synatax: list installed
+                Synatax: list installed (size)
+
+                list <null>: alias of list installed
 
             level alias: Set an alias for a level
                 Syntax: level alias [target-uuid] [alias name]
                 Example: backroom ./test debug manage level alias a0d9300af25b473e95198427b2213008 Earth
         
         manage service: Manage systemd services for levels
-            Subcommand: [add, del, edit, power, stat]
+            Subcommand: [add, del, edit, power, shell, stat]
 
             service add: Add services for levels
                 Subcommand: [rootfs, kvm]
@@ -114,6 +116,10 @@ function help_echo
             service power: Power on/off backroom levels through their services
                 Synatax: service power [on/off/reboot] [targets]
                 Example: backroom ./test debug manage service power on Earth f6c23a26881f4bf8bf9aa2af19d38548
+                
+            service shell: Login into a level`s shell
+                Synatax: service enter [target]
+                Example: backroom ./test debug manage service shell Earth
 
             service stat: Print stats of levels in index
                 Synatax: service stat Earth

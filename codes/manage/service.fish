@@ -9,6 +9,8 @@ function service
             end
         case del
             service_del $argv[2..-1]
+        case shell
+            service_shell $argv[2..-1]
         case stat
             service_stat $argv[2..-1]
         case power

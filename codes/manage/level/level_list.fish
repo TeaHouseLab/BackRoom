@@ -34,10 +34,20 @@ function level_list
                 exit 1
             end
             set meta (curl -sL $remote/streams/v1/images.json | jq -r '.products')
-            echo $meta | jq -r 'keys'
+            echo $meta | jq -r keys
         case installed
-            jq -er '[.levels[] | {"uuid": .uuid, "variant": .variant, "alias": .alias}]'  "$root/level_index.json"
+            switch $argv[2]
+                case size
+                    for level in (jq -er '.levels[].uuid' "$root/level_index.json")
+                        set alias (jq -er ".levels[] | select(.uuid==\"$level\").alias" "$root/level_index.json")
+                        set variant (jq -er ".levels[] | select(.uuid==\"$level\").variant" "$root/level_index.json")
+                        set size (du -sh $root/$level | awk '{ print $1 }')
+                        echo '{}' | jq -er ". + {\"uuid\": \"$level\", \"variant\": \"$variant\", \"alias\": \"$alias\", \"size\": \"$size\"}"
+                    end
+                case '*'
+                    jq -er '[.levels[] | {"uuid": .uuid, "variant": .variant, "alias": .alias}]' "$root/level_index.json"
+            end
         case '*'
-            logger 5 "Option $argv[1] not found at backroom.level_list"
+            level_list installed
     end
 end

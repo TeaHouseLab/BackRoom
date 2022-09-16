@@ -1,6 +1,6 @@
 set -x prefix "[BackRoom]"
 set -x codename Joshua
-set -x ver 1
+set -x ver 2
 set -x target
 set -x root $argv[1]
 set -x logcat $argv[2]
