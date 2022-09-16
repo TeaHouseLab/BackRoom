@@ -38,7 +38,7 @@ switch $argv[3]
         level_index_db
         api $argv[4..-1]
     case v version
-        logger 1 "$codename@build$version"
+        logger 1 "$codename@build$ver"
     case h help '*'
         help_echo
 end

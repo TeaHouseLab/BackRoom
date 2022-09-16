@@ -1226,7 +1226,7 @@ function api
     end
 end
 
-echo Build_Time_UTC=2022-09-16_15:01:45
+echo Build_Time_UTC=2022-09-16_15:03:54
 set -x prefix "[BackRoom]"
 set -x codename Joshua
 set -x ver 2
@@ -1267,7 +1267,7 @@ switch $argv[3]
         level_index_db
         api $argv[4..-1]
     case v version
-        logger 1 "$codename@build$version"
+        logger 1 "$codename@build$ver"
     case h help '*'
         help_echo
 end
