@@ -405,7 +405,7 @@ function service_power
                 if level_exist "$level"
                     if service_exist "$level"
                         if test (jq -er ".levels[] | select(.uuid==\"$target\") .stat" "$root/level_index.json") = up
-                            if systemctl stop backroom-$target; and systemctl disable backroom-$target
+                            if systemctl stop backroom-$target; and systemctl disable backroom-$target; and machinectl poweroff $target
                                 jq -re "(.levels[] | select(.uuid==\"$target\").stat) |= \"down\"" "$root/level_index.json" | sponge "$root/level_index.json"
                                 logger 2 "Level $level is down and disabled at startup"
                             else
@@ -428,8 +428,9 @@ function service_power
             end
         case reboot
             for level in $argv[2..-1]
-                service_power off $argv[2..-1]
-                service_power on $argv[2..-1]
+                if level_exist "$level"
+                    machinectl reboot $target
+                end
             end
         case '*'
             logger 5 "Option $argv[1] not found at backroom.service.power"
