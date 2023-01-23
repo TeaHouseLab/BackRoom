@@ -1,6 +1,6 @@
 set -x prefix "[BackRoom]"
-set -x codename Joshua
-set -x ver 2
+set -x codename Litchi
+set -x ver 1
 set -x target
 set -x root $argv[1]
 set -x logcat $argv[2]
@@ -34,9 +34,6 @@ switch $argv[3]
             case '*'
                 logger 5 "Option $argv[1] not found at backroom.manage"
         end
-    case host
-        level_index_db
-        api $argv[4..-1]
     case v version
         logger 1 "$codename@build$ver"
     case h help '*'
